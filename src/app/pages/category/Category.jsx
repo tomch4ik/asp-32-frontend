@@ -7,28 +7,43 @@ export default function Category()
     const {slug} = useParams();
     const {cart, request, backUrl, updateCart} = useContext(AppContext);
     const navigate = useNavigate();
-    const [group, setGroup] = useState({products:[]});
+    const [group, setGroup] = useState(null); 
 
     useEffect(() => {
-    request("/api/group/" + slug)
-        .then(setGroup)
-        .catch(_ => {});
+        request("/api/group/" + slug)
+            .then(setGroup)
+            .catch(console.error); 
     }, [slug]);
 
     const buyClick = productId => {
         request("/api/cart/" + productId, {
             method: 'POST'
         })
-    .then(updateCart)
-    .catch(console.error);
-};
+        .then(updateCart)
+        .catch(console.error);
+    };
+
+
+    if (!group) {
+        return <h1>Завантаження...</h1>;
+    }
+
+    const productsToRender = group.products?.$values || [];
+    
+
+    const currentCartItems = Array.isArray(cart?.cartItems) ? cart.cartItems : [];
+
+
 
     return <>
         <h1>Розділ {group.name}</h1>
         <div className="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
-        {group.products.map(p => <div key={p.id} className="col">
-            <Link className="nav-link h-100" to={"/product/" + (p.slug || p.id)}>
-                    <div class="card h-100">
+        
+        {productsToRender.map(p => 
+            <div key={p.id} className="col">
+                <Link className="nav-link h-100" to={"/product/" + (p.slug || p.id)}>
+                    <div className="card h-100">
+
                         <img src={backUrl + p.imageUrl} className="card-img-top" alt={p.name}/>
                         <div className="card-body">
                             <h5 className="card-title">{p.name}</h5>
@@ -36,11 +51,12 @@ export default function Category()
                         </div>
                         <div className="card-footer d-flex justify-content-between align-items-center">
                             <span>
-                                <i class="bi bi-eye"></i>
+                                <i className="bi bi-eye"></i>
                                 &nbsp;
                                 {p.feedbacksCount}
                             </span>
-                            {cart.cartItems.some(ci => ci.productId == p.id)
+                            
+                            {currentCartItems.some(ci => ci.productId === p.id)
                             ?
                             <button
                                 className="btn btn-success"
@@ -54,11 +70,20 @@ export default function Category()
                                 <i className="bi bi-cart-plus"></i>
                             </button>
                             }
-                            
                         </div>
                     </div>
                 </Link>
-            </div>)}
+            </div>
+        )}
+
+
+        {productsToRender.length === 0 && (
+            <div className="col-12">
+                <p className="alert alert-info text-center">
+                    У цьому розділі немає доступних товарів.
+                </p>
+            </div>
+        )}
         </div>
     </>;
 }

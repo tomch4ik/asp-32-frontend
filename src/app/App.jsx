@@ -8,49 +8,26 @@ import AppContext from '../features/context/AppContext';
 import Base64 from '../shared/base64/Base64';
 import Product from './pages/product/Product';
 import Cart from './pages/cart/Cart';
+import OrdersHistory from './pages/orders/OrdersHistory';
 
-const initCartState = 
-{
-    cartItems: []
-};
+
 
 const tokenKey = "asp-p32-token";
 
 function App() {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
-  const [cart, setCart] = useState(initCartState);
+  const [cart, setCart] = useState(null); 
 
   useEffect(() => {
     const savedToken = localStorage.getItem(tokenKey);
     if(savedToken) {
-        const payload = Base64.jwtDecodePayload(savedToken);
-        const exp = payload['exp'];
-        console.log(exp);
-        setToken(savedToken);
+      const payload = Base64.jwtDecodePayload(savedToken);
+      const exp = payload['exp'];
+      console.log(exp);
+      setToken(savedToken);
     }
-}, []);
-
-  const updateCart = () => {
-    if (token) {
-        request("/api/cart")
-            .then(setCart);
-    } else {
-        setCart(initCartState);
-    }
-  };
-
-
-  useEffect(() => {
-    if(token) {
-        setUser( Base64.jwtDecodePayload(token) );
-        localStorage.setItem(tokenKey, token);
-    } else {
-        setUser(null);
-        localStorage.removeItem(tokenKey);
-    }
-    updateCart();
-}, [token]);
+  }, []);
 
   const backUrl = "https://localhost:7085";
 
@@ -59,7 +36,7 @@ function App() {
     if(url.startsWith('/'))
     {
       url = backUrl + url;
-      //додаємо токен до кожного запиту
+
       if(token)
       {
         if(typeof conf == 'undefined')
@@ -84,8 +61,46 @@ function App() {
         } else {
           reject(j);
         }
-      });
+      })
+      .catch(error => reject(error)); 
   });
+
+  const updateCart = () => {
+
+    setCart(null); 
+
+    if (token) {
+      request("/api/cart")
+        .then(data => {
+
+            setCart(data || { cartItems: [] }); 
+        })
+        .catch(error => {
+
+          setCart({ cartItems: [] }); 
+
+          console.error("Помилка завантаження кошика:", error);
+
+        });
+    } else {
+
+      setCart({ cartItems: [] });
+    }
+};
+
+
+  useEffect(() => {
+    if(token) {
+      setUser( Base64.jwtDecodePayload(token) );
+      localStorage.setItem(tokenKey, token);
+    } else {
+      setUser(null);
+      localStorage.removeItem(tokenKey);
+    }
+
+    updateCart();
+  }, [token]);
+
 
   return <AppContext.Provider value={{cart, updateCart, request, backUrl, user, setToken}}>
     <BrowserRouter>
@@ -93,6 +108,7 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="cart/" element={<Cart/>} />
+          <Route path="order/" element={<OrdersHistory/>}/>
           <Route path="category/:slug" element={<Category />} />
           <Route path="product/:slug" element={<Product />} />
         </Route>
